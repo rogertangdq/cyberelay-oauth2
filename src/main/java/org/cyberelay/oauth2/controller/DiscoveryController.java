@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Function;
 
 @RestController
 public class DiscoveryController {
@@ -14,13 +15,17 @@ public class DiscoveryController {
     @CrossOrigin
     @GetMapping(EndPoints.DISCOVERY_URI)
     public Map<String, Object> openidConfiguration() {
-        var baseUrlBuilder = ServletUriComponentsBuilder.fromCurrentRequestUri().replacePath(null);
+        Function<String, String> urlBuilder = path -> ServletUriComponentsBuilder
+                .fromCurrentRequestUri()
+                .replacePath(path)
+                .build()
+                .toUriString();
 
         Map<String, Object> config = new HashMap<>();
-        config.put("issuer", baseUrlBuilder.build().toUriString());
-        config.put("authorization_endpoint", baseUrlBuilder.replacePath(EndPoints.AUTHORIZATION).build().toUriString());
-        config.put("token_endpoint", baseUrlBuilder.replacePath(EndPoints.TOKEN).build().toUriString());
-        config.put("jwks_uri", baseUrlBuilder.replacePath(EndPoints.JWKS_URI).build().toUriString());
+        config.put("issuer", urlBuilder.apply(null));
+        config.put("authorization_endpoint", urlBuilder.apply(EndPoints.AUTHORIZATION));
+        config.put("token_endpoint", urlBuilder.apply(EndPoints.TOKEN));
+        config.put("jwks_uri", urlBuilder.apply(EndPoints.JWKS_URI));
         config.put("response_types_supported", new String[]{"code", "token", "id_token"});
         config.put("grant_types_supported", new String[]{"authorization_code", "client_credentials", "refresh_token"});
         config.put("scopes_supported", new String[]{"openid", "profile", "email"});
