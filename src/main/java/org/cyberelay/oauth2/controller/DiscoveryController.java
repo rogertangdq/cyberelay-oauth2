@@ -11,7 +11,7 @@ import java.util.Map;
 @RestController
 public class DiscoveryController {
 
-    @CrossOrigin(origins = "http://localhost:3000") // TODO to allow request from any origin
+    @CrossOrigin
     @GetMapping(EndPoints.DISCOVERY_URI)
     public Map<String, Object> openidConfiguration() {
         var baseUrlBuilder = ServletUriComponentsBuilder.fromCurrentRequestUri().replacePath(null);
