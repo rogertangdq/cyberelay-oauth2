@@ -12,7 +12,7 @@
 <p><strong>Scope:</strong> <span th:text="${scope}"></span></p>
 <p><strong>Username:</strong> <span th:text="${principalName}"></span></p>
 
-<form th:action="@{/custom-authorize}" method="post">
+<form th:action="@{/authorize}" method="post">
     <input type="hidden" name="client_id" th:value="${clientId}"/>
     <input type="hidden" name="redirect_uri" th:value="${redirectUri}"/>
     <input type="hidden" name="scope" th:value="${scope}"/>
