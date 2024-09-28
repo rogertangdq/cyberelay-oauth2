@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -30,7 +32,6 @@ import java.security.spec.ECGenParameterSpec;
 public class AppConfig {
     private static final String[] PUBLIC_ENDPOINTS = {
             EndPoints.LOGIN,
-            EndPoints.AUTHORIZATION,
             EndPoints.JWKS_URI,
             EndPoints.TOKEN,
             EndPoints.DISCOVERY_URI,
@@ -54,16 +55,16 @@ public class AppConfig {
                 )
                 .formLogin(formLogin -> formLogin
                         .loginPage(EndPoints.LOGIN)
-                        .defaultSuccessUrl(EndPoints.ROOT, true)
+                        .defaultSuccessUrl(EndPoints.AUTHORIZATION, true) // return to authorization after login
                         .permitAll()
                 )
                 .logout(logout -> logout
                         .logoutSuccessUrl(EndPoints.LOGIN + "?logout").permitAll()
+                )
+                .csrf(AbstractHttpConfigurer::disable) // Enable access to H2 console
+                .headers(headersConfigurer -> headersConfigurer
+                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::disable)
                 );
-
-        // Enable access to H2 console
-        http.csrf().disable();
-        http.headers().frameOptions().disable();
 
         return http.build();
     }
