@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Authorization Consent</title>
+</head>
+<body>
+<h1>Authorization Request</h1>
+<p><strong>Client ID:</strong> <span th:text="${clientId}"></span></p>
+<p><strong>Redirect URI:</strong> <span th:text="${redirectUri}"></span></p>
+<p><strong>Response Type:</strong> <span th:text="${responseType}"></span></p>
+<p><strong>Scope:</strong> <span th:text="${scope}"></span></p>
+<p><strong>Username:</strong> <span th:text="${principalName}"></span></p>
+
+<form th:action="@{/custom-authorize}" method="post">
+    <input type="hidden" name="client_id" th:value="${clientId}"/>
+    <input type="hidden" name="redirect_uri" th:value="${redirectUri}"/>
+    <input type="hidden" name="scope" th:value="${scope}"/>
+    <input type="hidden" name="state" th:value="${state}"/>
+
+    <button type="submit">Approve</button>
+    <button type="button" onclick="window.history.back()">Deny</button>
+</form>
+</body>
+</html>

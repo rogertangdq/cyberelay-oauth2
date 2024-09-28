@@ -4,10 +4,10 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 @SpringBootApplication
-public class CyberelayOauth2Application {
+public class Oauth2App {
 
 	public static void main(String[] args) {
-		SpringApplication.run(CyberelayOauth2Application.class, args);
+		SpringApplication.run(Oauth2App.class, args);
 	}
 
 }
