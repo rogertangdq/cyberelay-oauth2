@@ -1,6 +1,7 @@
 package org.cyberelay.oauth2.controller;
 
 import org.cyberelay.oauth2.config.EndPoints;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
@@ -10,6 +11,7 @@ import java.util.Map;
 @RestController
 public class DiscoveryController {
 
+    @CrossOrigin(origins = "http://localhost:3000") // TODO to allow request from any origin
     @GetMapping(EndPoints.DISCOVERY_URI)
     public Map<String, Object> openidConfiguration() {
         var baseUrlBuilder = ServletUriComponentsBuilder.fromCurrentRequestUri().replacePath(null);
