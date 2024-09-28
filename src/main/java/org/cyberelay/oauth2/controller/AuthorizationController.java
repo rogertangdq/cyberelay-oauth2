@@ -7,6 +7,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -30,12 +31,15 @@ public class AuthorizationController {
     public record AuthorizeRequest(String client_id,
                                    String redirect_uri,
                                    String response_type,
+                                   String response_mode,
                                    String scope,
+                                   String code_challenge,
+                                   String code_challenge_method,
                                    String state) {
     }
 
     @GetMapping
-    public String authorize(@RequestBody AuthorizeRequest request,
+    public String authorize(@ModelAttribute AuthorizeRequest request,
                             Model model,
                             @AuthenticationPrincipal Authentication principal) {
         var client = registeredClientRepository.findByClientId(request.client_id);
