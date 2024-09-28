@@ -1,6 +1,9 @@
 package org.cyberelay.oauth2.model;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
@@ -12,13 +15,19 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 public class Client {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private String id;
 
+    @Column
     private String clientId;
+
+    @Column
     private String clientSecret;
-    private String clientAuthenticationMethods;
-    private String authorizationGrantTypes;
+
+    @Column
     private String redirectUris;
+
+    @Column
     private String scopes;
 
     public String getId() {
@@ -33,14 +42,6 @@ public class Client {
         return clientSecret;
     }
 
-    public String getClientAuthenticationMethods() {
-        return clientAuthenticationMethods;
-    }
-
-    public String getAuthorizationGrantTypes() {
-        return authorizationGrantTypes;
-    }
-
     public String getRedirectUris() {
         return redirectUris;
     }
@@ -49,9 +50,10 @@ public class Client {
         return scopes;
     }
 
-    // Map the entity fields to the RegisteredClient object
+    // Convert this object into spring RegisteredClient object
     public RegisteredClient toRegisteredClient() {
-        RegisteredClient.Builder builder = RegisteredClient.withId(this.id)
+        RegisteredClient.Builder builder = RegisteredClient
+                .withId(this.id)
                 .clientId(this.clientId)
                 .clientSecret(this.clientSecret)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
@@ -78,12 +80,60 @@ public class Client {
         entity.id = registeredClient.getId();
         entity.clientId = registeredClient.getClientId();
         entity.clientSecret = registeredClient.getClientSecret();
-        entity.clientAuthenticationMethods = String.join(",", registeredClient.getClientAuthenticationMethods().stream().map(ClientAuthenticationMethod::getValue).toArray(String[]::new));
-        entity.authorizationGrantTypes = String.join(",", registeredClient.getAuthorizationGrantTypes().stream().map(AuthorizationGrantType::getValue).toArray(String[]::new));
         entity.redirectUris = String.join(",", registeredClient.getRedirectUris());
         entity.scopes = String.join(",", registeredClient.getScopes());
         return entity;
     }
 
-    // Getters and Setters
+    public static Builder builder() {
+        return builder(null);
+    }
+
+    public static Builder builder(Client template) {
+        var builder = new Builder();
+        if (template != null) {
+            builder.clientSecret(template.clientSecret)
+                    .clientId(template.clientId)
+                    .redirectUris(template.redirectUris)
+                    .scopes(template.scopes);
+        }
+
+        return builder;
+    }
+
+    public static class Builder {
+        private Client template;
+        private Builder() {
+            this.template = new Client();
+        }
+
+        public Builder clientId(String clientId) {
+            template.clientId = clientId;
+            return this;
+        }
+
+        public Builder clientSecret(String clientSecret) {
+            template.clientSecret = clientSecret;
+            return this;
+        }
+
+        public Builder scopes(String... scope) {
+            template.scopes = String.join(",", scope);
+            return this;
+        }
+
+        public Builder redirectUris(String... redirectUri) {
+            template.redirectUris = String.join(",", redirectUri);
+            return this;
+        }
+
+        public Client build() {
+            var newClient = new Client();
+            newClient.clientId = template.clientId;
+            newClient.clientSecret = template.clientSecret;
+            newClient.redirectUris = template.redirectUris;
+            newClient.scopes = template.scopes;
+            return newClient;
+        }
+    }
 }

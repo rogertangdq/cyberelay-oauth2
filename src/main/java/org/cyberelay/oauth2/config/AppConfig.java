@@ -1,6 +1,10 @@
 package org.cyberelay.oauth2.config;
 
+import org.cyberelay.oauth2.dao.ClientRepository;
+import org.cyberelay.oauth2.model.Client;
 import org.cyberelay.oauth2.model.User;
+import org.cyberelay.oauth2.util.ClientIdSecrets;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -42,8 +46,11 @@ public class AppConfig {
 
     private final UserRepository userRepository;
 
-    public AppConfig(UserRepository userRepository) {
+    private final ClientRepository clientRepository;
+
+    public AppConfig(UserRepository userRepository, ClientRepository clientRepository) {
         this.userRepository = userRepository;
+        this.clientRepository = clientRepository;
     }
 
     @Bean
@@ -106,18 +113,37 @@ public class AppConfig {
     }
 
     @Bean
-    public CommandLineRunner initializeDatabase(UserRepository userRepository, PasswordEncoder passwordEncoder) {
-        // Pre-populate built-in user accounts for dev use
-        // TODO make this bean for dev only
+    public CommandLineRunner initializeDatabase(UserRepository userRepository,
+                                                PasswordEncoder passwordEncoder,
+                                                @Qualifier("DEFAULT_CLIENT") Client defaultClient) {
+        // Create built-in user accounts and oauth clients for customization
+        var encodedDefaultClient = Client.builder(defaultClient)
+                .clientSecret(passwordEncoder.encode(defaultClient.getClientSecret()))
+                .build();
+
         return args -> {
             userRepository.save(new User("user", passwordEncoder.encode("password"), "USER"));
             userRepository.save(new User("admin", passwordEncoder.encode("admin"), "ADMIN"));
+
+            clientRepository.save(encodedDefaultClient);
         };
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
+    }
+
+    @Bean(name="DEFAULT_CLIENT")
+    public Client defaultClient() {
+        var idSecretPair = ClientIdSecrets.newClientIdSecret();
+
+        return Client.builder()
+                .clientId(idSecretPair.getFirst())
+                .clientSecret(idSecretPair.getSecond())
+                .redirectUris("http://localhost:3000/oauth/callback")
+                .scopes("openid")
+                .build();
     }
 
     @Bean
