@@ -50,13 +50,13 @@ public class AppConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .authorizeHttpRequests(authorizeRequests -> authorizeRequests
+                        .requestMatchers(EndPoints.AUTHORIZATION).authenticated()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .anyRequest().authenticated()
                 )
                 .formLogin(formLogin -> formLogin
                         .loginPage(EndPoints.LOGIN)
                         .defaultSuccessUrl(EndPoints.AUTHORIZATION, true) // return to authorization after login
-                        .permitAll()
                 )
                 .logout(logout -> logout
                         .logoutSuccessUrl(EndPoints.LOGIN + "?logout").permitAll()
