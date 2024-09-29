@@ -143,8 +143,7 @@ public class AppConfig {
         }
     }
 
-    private static final class OAuth2AuthorizationCodeGenerator implements OAuth2TokenGenerator<OAuth2AuthorizationCode> {
-
+    private static class OAuth2AuthorizationCodeGenerator implements OAuth2TokenGenerator<OAuth2AuthorizationCode> {
         private final StringKeyGenerator authorizationCodeGenerator = new Base64StringKeyGenerator(
                 Base64.getUrlEncoder().withoutPadding(), 96
         );
@@ -159,17 +158,6 @@ public class AppConfig {
             Instant expiresAt = issuedAt
                     .plus(context.getRegisteredClient().getTokenSettings().getAuthorizationCodeTimeToLive());
             return new OAuth2AuthorizationCode(this.authorizationCodeGenerator.generateKey(), issuedAt, expiresAt);
-        }
-    }
-
-    @Bean
-    public KeyPair keyPair() {
-        try {
-            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
-            keyPairGenerator.initialize(new ECGenParameterSpec("secp256r1")); // P-256 curve
-            return keyPairGenerator.generateKeyPair();
-        } catch (NoSuchAlgorithmException | java.security.InvalidAlgorithmParameterException e) {
-            throw new IllegalStateException(e);
         }
     }
 
@@ -202,6 +190,17 @@ public class AppConfig {
                 .redirectUris("http://localhost:3000/oauth/callback")
                 .scopes("openid")
                 .build();
+    }
+
+    @Bean
+    public KeyPair keyPair() {
+        try {
+            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
+            keyPairGenerator.initialize(new ECGenParameterSpec("secp256r1")); // P-256 curve
+            return keyPairGenerator.generateKeyPair();
+        } catch (NoSuchAlgorithmException | java.security.InvalidAlgorithmParameterException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Bean

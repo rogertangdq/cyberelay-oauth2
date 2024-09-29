@@ -117,19 +117,24 @@ public class AuthorizationController {
                 .withRegisteredClient(registeredClient)
                 .principalName(authentication.getName())
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .attribute("codeChallenge", request.code_challenge)
+                .attribute("codeChallengeMethod", request.code_challenge_method)
                 .authorizedScopes(request.getScopes())
                 .build();
         var tokenContext = DefaultOAuth2TokenContext.builder()
                 .registeredClient(registeredClient)
                 .authorization(authorization)
                 .tokenType(new OAuth2TokenType(OAuth2ParameterNames.CODE))
-                .authorizedScopes(registeredClient.getScopes())
+                .authorizedScopes(authorization.getAuthorizedScopes())
                 .authorizationGrantType(authorization.getAuthorizationGrantType())
                 .build();
         var authorizationCode = tokenGenerator.generate(tokenContext);
         // Update authorization
         authorization = OAuth2Authorization.from(authorization).token(authorizationCode).build();
         authorizationService.save(authorization);
+        if (authorizationCode == null) {
+            throw new IllegalStateException("Authorization code not generated");
+        }
         var code = authorizationCode.getTokenValue();
 
         String redirectUrl = request.redirect_uri + "?code=" + code + "&state=" + request.state;

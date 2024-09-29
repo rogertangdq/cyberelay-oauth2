@@ -62,6 +62,7 @@ public class Client {
                 .clientId(this.clientId)
                 .clientSecret(this.clientSecret)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                 .clientSettings(ClientSettings.builder().requireProofKey(true).build());
