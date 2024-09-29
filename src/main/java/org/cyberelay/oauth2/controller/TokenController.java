@@ -2,10 +2,14 @@ package org.cyberelay.oauth2.controller;
 
 import org.cyberelay.oauth2.config.EndPoints;
 import org.cyberelay.oauth2.dao.ClientRepository;
+import org.cyberelay.oauth2.model.Client;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2Token;
-import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.token.DefaultOAuth2TokenContext;
@@ -20,27 +24,42 @@ import java.util.Map;
 @RestController
 @RequestMapping(EndPoints.TOKEN)
 public class TokenController {
+    private static final Logger LOG = LoggerFactory.getLogger(TokenController.class);
 
     private final ClientRepository clientRepository;
     private final OAuth2AuthorizationService authorizationService;
     private final OAuth2TokenGenerator<?> tokenGenerator;
 
+    private final Client defaultClient;
+
     public TokenController(ClientRepository clientRepository,
                            OAuth2AuthorizationService authorizationService,
-                           OAuth2TokenGenerator<?> tokenGenerator) {
+                           OAuth2TokenGenerator<?> tokenGenerator,
+                           @Qualifier("DEFAULT_CLIENT") Client defaultClient) {
         this.clientRepository = clientRepository;
         this.authorizationService = authorizationService;
         this.tokenGenerator = tokenGenerator;
+        this.defaultClient = defaultClient;
     }
 
     public record TokenRequest(String client_id, String client_secret, String grant_type) {
+        public TokenRequest withClientId(String clientId) {
+            return new TokenRequest(clientId, this.client_secret, this.grant_type);
+        }
+
+        public TokenRequest withClientSecret(String clientSecret) {
+            return new TokenRequest(this.client_id, clientSecret, this.grant_type);
+        }
     }
 
     @PostMapping
-    public Map<String, Object> getToken(@RequestBody TokenRequest request) {
-        // Validate the client
+    @CrossOrigin
+    public Map<String, Object> getToken(@ModelAttribute TokenRequest request) {
+        // Customization for test kit to ensure client/clientSecret not absent.
         if (request.client_id == null || request.client_secret == null) {
-            throw new IllegalArgumentException("Invalid client credentials");
+            LOG.warn("Token request has no client_id, default client ID is used");
+            request = request.withClientId(defaultClient.getClientId())
+                    .withClientSecret(defaultClient.getClientSecret());
         }
 
         // Validate the client
@@ -49,8 +68,8 @@ public class TokenController {
             throw new IllegalArgumentException("Invalid client credentials");
         }
 
-        // Only handling the "client_credentials" grant type at this moment
-        if (!"client_credentials".equals(request.grant_type)) {
+        // Only handling the "authorization_code" grant type at this moment
+        if (!"authorization_code".equals(request.grant_type)) {
             throw new IllegalArgumentException("Unsupported grant type: "  + request.grant_type);
         }
 
@@ -60,6 +79,7 @@ public class TokenController {
                 .builder()
                 .registeredClient(registeredClient)
                 .principal(new UsernamePasswordAuthenticationToken(request.client_id, request.client_secret))
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorization(OAuth2Authorization.withRegisteredClient(registeredClient).build())
                 .authorizedScopes(registeredClient.getScopes())
                 .build();

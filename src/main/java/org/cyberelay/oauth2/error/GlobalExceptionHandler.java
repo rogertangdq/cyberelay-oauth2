@@ -1,5 +1,7 @@
 package org.cyberelay.oauth2.error;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.ErrorResponse;
@@ -11,6 +13,7 @@ import java.util.NoSuchElementException;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
+    private static final Logger LOG = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     @ExceptionHandler(NoSuchElementException.class)
     public ResponseEntity<ErrorResponse> handleNoSuchElementException(NoSuchElementException ex, WebRequest request) {
@@ -36,6 +39,7 @@ public class GlobalExceptionHandler {
                 .builder(ex, status, LocalDateTime.now().toString())
                 .detail(detail)
                 .build();
+        LOG.error("Api error: " + detail, ex);
         return new ResponseEntity<>(errorResponse, status);
     }
 }
