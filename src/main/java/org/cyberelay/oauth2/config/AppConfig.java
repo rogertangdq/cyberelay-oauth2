@@ -63,7 +63,7 @@ public class AppConfig {
                 )
                 .formLogin(formLogin -> formLogin
                         .loginPage(EndPoints.LOGIN)
-                        .defaultSuccessUrl(EndPoints.AUTHORIZATION, true) // return to authorization after login
+                        .defaultSuccessUrl(EndPoints.AUTHORIZATION, false)
                 )
                 .logout(logout -> logout
                         .logoutSuccessUrl(EndPoints.LOGIN + "?logout").permitAll()
@@ -117,15 +117,11 @@ public class AppConfig {
                                                 PasswordEncoder passwordEncoder,
                                                 @Qualifier("DEFAULT_CLIENT") Client defaultClient) {
         // Create built-in user accounts and oauth clients for customization
-        var encodedDefaultClient = Client.builder(defaultClient)
-                .clientSecret(passwordEncoder.encode(defaultClient.getClientSecret()))
-                .build();
-
         return args -> {
             userRepository.save(new User("user", passwordEncoder.encode("password"), "USER"));
             userRepository.save(new User("admin", passwordEncoder.encode("admin"), "ADMIN"));
 
-            clientRepository.save(encodedDefaultClient);
+            clientRepository.save(defaultClient);
         };
     }
 
@@ -135,12 +131,13 @@ public class AppConfig {
     }
 
     @Bean(name="DEFAULT_CLIENT")
-    public Client defaultClient() {
+    public Client defaultClient(PasswordEncoder passwordEncoder) {
         var idSecretPair = ClientIdSecrets.newClientIdSecret();
 
         return Client.builder()
                 .clientId(idSecretPair.getFirst())
-                .clientSecret(idSecretPair.getSecond())
+                .decodedClientSecret(idSecretPair.getSecond())
+                .clientSecret(passwordEncoder.encode(idSecretPair.getSecond()))
                 .redirectUris("http://localhost:3000/oauth/callback")
                 .scopes("openid")
                 .build();

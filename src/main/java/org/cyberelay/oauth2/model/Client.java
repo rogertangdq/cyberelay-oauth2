@@ -6,6 +6,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
@@ -23,6 +24,9 @@ public class Client {
 
     @Column
     private String clientSecret;
+
+    @Transient
+    private String decodedClientSecret;
 
     @Column
     private String redirectUris;
@@ -95,7 +99,8 @@ public class Client {
             builder.clientSecret(template.clientSecret)
                     .clientId(template.clientId)
                     .redirectUris(template.redirectUris)
-                    .scopes(template.scopes);
+                    .scopes(template.scopes)
+                    .decodedClientSecret(template.decodedClientSecret);
         }
 
         return builder;
@@ -127,12 +132,19 @@ public class Client {
             return this;
         }
 
+        public Builder decodedClientSecret(String decodedSecret) {
+            template.decodedClientSecret = decodedSecret;
+            return this;
+        }
+
         public Client build() {
             var newClient = new Client();
             newClient.clientId = template.clientId;
             newClient.clientSecret = template.clientSecret;
             newClient.redirectUris = template.redirectUris;
             newClient.scopes = template.scopes;
+            newClient.decodedClientSecret = template.decodedClientSecret;
+
             return newClient;
         }
     }
