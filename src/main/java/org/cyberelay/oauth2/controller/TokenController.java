@@ -8,9 +8,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
-import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
@@ -18,8 +18,10 @@ import org.springframework.security.oauth2.server.authorization.token.DefaultOAu
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.Instant;
-import java.util.HashMap;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.Map;
 
 @RestController
@@ -69,6 +71,10 @@ public class TokenController {
                     .withClientSecret(defaultClient.getClientSecret());
         }
 
+        if (request.code_verifier == null) {
+            throw new IllegalArgumentException("Invalid code verifier");
+        }
+
         // Validate the client
         var clientOpt = clientRepository.findByClientId(request.client_id);
         if (clientOpt.isEmpty() || !clientOpt.get().getClientSecret().equals(request.client_secret)) {
@@ -86,6 +92,16 @@ public class TokenController {
             throw new IllegalArgumentException("Invalid authorization code");
         }
 
+        var codeChallenge = (String) code.getAttribute("codeChallenge");
+        var codeChallengeMethod = (String) code.getAttribute("codeChallengeMethod");
+        if (codeChallenge == null || codeChallengeMethod == null) {
+            throw new IllegalArgumentException("Code challenge or code challenge method not found");
+        }
+
+        if (!verifyCodeChallenge(request.code_verifier, codeChallenge, codeChallengeMethod)) {
+            throw new IllegalArgumentException("Invalid code verifier");
+        }
+
         var registeredClient = clientOpt.get().toRegisteredClient();
         var authorization = OAuth2Authorization.from(code)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
@@ -97,24 +113,38 @@ public class TokenController {
                 .registeredClient(registeredClient)
                 .principal(new UsernamePasswordAuthenticationToken(request.client_id, request.client_secret))
                 .authorization(authorization)
-                .tokenType(OAuth2TokenType.ACCESS_TOKEN)
+                .tokenType(new OAuth2TokenType(OidcParameterNames.ID_TOKEN))
                 .authorizedScopes(code.getAuthorizedScopes())
                 .build();
 
         OAuth2Token accessToken = tokenGenerator.generate(tokenContext);
+        if (accessToken == null) {
+            throw new IllegalStateException("ID Token generation failed");
+        }
+
         authorization = OAuth2Authorization.from(authorization).token(accessToken).build();
         authorizationService.save(authorization);
 
-        if (!(accessToken instanceof OAuth2AccessToken)) {
-            throw new IllegalArgumentException("Unable to generate access token");
+        return Map.of("id_token", accessToken.getTokenValue());
+    }
+
+    private boolean verifyCodeChallenge(String codeVerifier, String codeChallenge, String codeChallengeMethod) {
+        try {
+            switch (codeChallengeMethod.toLowerCase()) {
+                case "s256":
+                    MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                    byte[] hash = digest.digest(codeVerifier.getBytes(StandardCharsets.US_ASCII));
+                    // Base64 URL-encode the hash
+                    String encodedHash = Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+                    // Compare with the original code_challenge
+                    return encodedHash.equals(codeChallenge);
+                case "plain":
+                    return codeVerifier.equals(codeChallenge);
+                default:
+                    throw new IllegalArgumentException("Unsupported code_challenge_method: " + codeChallengeMethod);
+            }
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Error while verifying code challenge: " + e.getMessage(), e);
         }
-
-        // Return the token response in JSON format
-        Map<String, Object> response = new HashMap<>();
-        response.put("access_token", accessToken.getTokenValue());
-        response.put("token_type", "Bearer");
-        response.put("expires_in", accessToken.getExpiresAt().getEpochSecond() - Instant.now().getEpochSecond());
-
-        return response;
     }
 }

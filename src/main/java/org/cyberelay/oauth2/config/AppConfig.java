@@ -7,6 +7,8 @@ import org.cyberelay.oauth2.dao.ClientRepository;
 import org.cyberelay.oauth2.model.Client;
 import org.cyberelay.oauth2.model.User;
 import org.cyberelay.oauth2.util.ClientIdSecrets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
@@ -36,11 +38,9 @@ import org.springframework.security.web.SecurityFilterChain;
 
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
-import java.util.UUID;
 
 import org.cyberelay.oauth2.dao.UserRepository;
 
@@ -54,6 +54,7 @@ import java.util.Base64;
 @Configuration
 @EnableWebSecurity
 public class AppConfig {
+    private static final Logger LOG = LoggerFactory.getLogger(AppConfig.class);
     private static final String[] PUBLIC_ENDPOINTS = {
             EndPoints.LOGIN,
             EndPoints.JWKS_URI,
@@ -130,21 +131,17 @@ public class AppConfig {
         try {
             ECKey ecJWK = new ECKey.Builder(Curve.P_256, ecPublicKey)
                     .privateKey(ecPrivateKey)
-                    .keyID(UUID.randomUUID().toString())
+                    .keyID("ec-key-cyberelay")
                     .build();
-
-            // Create a JWKSet containing EC JWK
             JWKSet jwkSet = new JWKSet(ecJWK);
 
-            // Create a JWKSource using the ImmutableJWKSet
-            return new ImmutableJWKSet<>(jwkSet);
+            return (jwkSelector, securityContext) -> jwkSelector.select(jwkSet);
         } catch (Exception e) {
             throw new RuntimeException("Error creating JWKSource", e);
         }
     }
 
-    private static final class OAuth2AuthorizationCodeGenerator implements OAuth2TokenGenerator<OAuth2AuthorizationCode> {
-
+    private static class OAuth2AuthorizationCodeGenerator implements OAuth2TokenGenerator<OAuth2AuthorizationCode> {
         private final StringKeyGenerator authorizationCodeGenerator = new Base64StringKeyGenerator(
                 Base64.getUrlEncoder().withoutPadding(), 96
         );
@@ -163,26 +160,17 @@ public class AppConfig {
     }
 
     @Bean
-    public KeyPair keyPair() {
-        try {
-            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
-            keyPairGenerator.initialize(new ECGenParameterSpec("secp256r1")); // P-256 curve
-            return keyPairGenerator.generateKeyPair();
-        } catch (NoSuchAlgorithmException | java.security.InvalidAlgorithmParameterException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-
-    @Bean
     public CommandLineRunner initializeDatabase(UserRepository userRepository,
                                                 PasswordEncoder passwordEncoder,
                                                 @Qualifier("DEFAULT_CLIENT") Client defaultClient) {
         // Create built-in user accounts and oauth clients for customization
         return args -> {
+            LOG.info("Creating built-in users and clients...");
             userRepository.save(new User("user", passwordEncoder.encode("password"), "USER"));
             userRepository.save(new User("admin", passwordEncoder.encode("admin"), "ADMIN"));
 
             clientRepository.save(defaultClient);
+            LOG.info("Creating built-in users and clients... Completed!");
         };
     }
 
@@ -202,6 +190,17 @@ public class AppConfig {
                 .redirectUris("http://localhost:3000/oauth/callback")
                 .scopes("openid")
                 .build();
+    }
+
+    @Bean
+    public KeyPair keyPair() {
+        try {
+            KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance("EC");
+            keyPairGenerator.initialize(new ECGenParameterSpec("secp256r1")); // P-256 curve
+            return keyPairGenerator.generateKeyPair();
+        } catch (NoSuchAlgorithmException | java.security.InvalidAlgorithmParameterException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     @Bean

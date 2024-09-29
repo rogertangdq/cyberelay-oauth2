@@ -26,7 +26,7 @@ public class JwksController {
     @GetMapping(EndPoints.JWKS_URI)
     public Map<String, Object> getJwks() {
         JWK jwk = new ECKey.Builder(Curve.P_256, publicKey)
-                .keyID("ec-key-id") // Customize your key ID
+                .keyID("ec-key-cyberelay") // Customize your key ID
                 .build();
 
         JWKSet jwkSet = new JWKSet(jwk);

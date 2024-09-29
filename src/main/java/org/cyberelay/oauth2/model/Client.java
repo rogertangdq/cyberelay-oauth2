@@ -9,8 +9,10 @@ import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.jose.jws.SignatureAlgorithm;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
+import org.springframework.security.oauth2.server.authorization.settings.TokenSettings;
 
 @Entity
 @Table(name = "oauth2_client")
@@ -57,14 +59,20 @@ public class Client {
 
     // Convert this object into spring RegisteredClient object
     public RegisteredClient toRegisteredClient() {
+        var clientSettings = ClientSettings.builder()
+                .tokenEndpointAuthenticationSigningAlgorithm(SignatureAlgorithm.ES256)
+                .requireProofKey(true)
+                .build();
         var builder = RegisteredClient
                 .withId(this.id)
                 .clientId(this.clientId)
                 .clientSecret(this.clientSecret)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-                .clientSettings(ClientSettings.builder().requireProofKey(true).build());
+                .tokenSettings(TokenSettings.builder().idTokenSignatureAlgorithm(SignatureAlgorithm.ES256).build())
+                .clientSettings(clientSettings);
 
         if (redirectUris != null && !redirectUris.isEmpty()) {
             for (String uri : redirectUris.split(",")) {
