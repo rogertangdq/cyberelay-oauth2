@@ -8,9 +8,9 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
-import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
@@ -115,17 +115,13 @@ public class TokenController {
                 .registeredClient(registeredClient)
                 .principal(new UsernamePasswordAuthenticationToken(request.client_id, request.client_secret))
                 .authorization(authorization)
-                .tokenType(OAuth2TokenType.ACCESS_TOKEN)
+                .tokenType(new OAuth2TokenType(OidcParameterNames.ID_TOKEN))
                 .authorizedScopes(code.getAuthorizedScopes())
                 .build();
 
         OAuth2Token accessToken = tokenGenerator.generate(tokenContext);
         authorization = OAuth2Authorization.from(authorization).token(accessToken).build();
         authorizationService.save(authorization);
-
-        if (!(accessToken instanceof OAuth2AccessToken)) {
-            throw new IllegalArgumentException("Unable to generate access token");
-        }
 
         // Return the token response in JSON format
         Map<String, Object> response = new HashMap<>();
