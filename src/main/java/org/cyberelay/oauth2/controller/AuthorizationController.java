@@ -9,13 +9,22 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
+import org.springframework.security.oauth2.server.authorization.token.DefaultOAuth2TokenContext;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+
+import java.util.Set;
 
 @Controller
 @RequestMapping(EndPoints.AUTHORIZATION)
@@ -25,13 +34,16 @@ public class AuthorizationController {
     private final ClientRepository registeredClientRepository;
     private final OAuth2AuthorizationService authorizationService;
 
+    private final OAuth2TokenGenerator<?> tokenGenerator;
     private final Client defaultClient;
 
     public AuthorizationController(ClientRepository registeredClientRepository,
                                    OAuth2AuthorizationService authorizationService,
+                                   OAuth2TokenGenerator<?> tokenGenerator,
                                    @Qualifier("DEFAULT_CLIENT") Client defaultClient) {
         this.registeredClientRepository = registeredClientRepository;
         this.authorizationService = authorizationService;
+        this.tokenGenerator = tokenGenerator;
         this.defaultClient = defaultClient;
     }
 
@@ -42,6 +54,7 @@ public class AuthorizationController {
                                    String scope,
                                    String code_challenge,
                                    String code_challenge_method,
+                                   String principalName,
                                    String state) {
         public AuthorizeRequest withClientId(String client_id) {
             return new AuthorizeRequest(
@@ -52,8 +65,13 @@ public class AuthorizationController {
                     this.scope,
                     this.code_challenge,
                     this.code_challenge_method,
+                    this.principalName,
                     this.state
             );
+        }
+
+        public Set<String> getScopes() {
+            return Set.of(StringUtils.split(scope, ","));
         }
     }
 
@@ -76,7 +94,10 @@ public class AuthorizationController {
         model.addAttribute("clientId", request.client_id);
         model.addAttribute("redirectUri", request.redirect_uri);
         model.addAttribute("responseType", request.response_type);
+        model.addAttribute("responseMode", request.response_mode);
         model.addAttribute("scope", request.scope);
+        model.addAttribute("codeChallenge", request.code_challenge);
+        model.addAttribute("codeChallengeMethod", request.code_challenge_method);
         model.addAttribute("state", request.state);
         model.addAttribute("principalName", authentication.getName());
 
@@ -85,9 +106,33 @@ public class AuthorizationController {
 
     @PostMapping
     public String approveAuthorization(@ModelAttribute AuthorizeRequest request) {
-        // Custom logic to approve the authorization request.
-        // Redirecting to the provided redirect URI after successful authorization
-        String redirectUrl = request.redirect_uri + "?code=sample_auth_code&state=" + request.state;
+        var clientOpt = registeredClientRepository.findByClientId(request.client_id);
+        if (clientOpt.isEmpty()) {
+            throw new IllegalArgumentException("Invalid client_id");
+        }
+
+        var registeredClient = clientOpt.get().toRegisteredClient();
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        var authorization = OAuth2Authorization
+                .withRegisteredClient(registeredClient)
+                .principalName(authentication.getName())
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .authorizedScopes(request.getScopes())
+                .build();
+        var tokenContext = DefaultOAuth2TokenContext.builder()
+                .registeredClient(registeredClient)
+                .authorization(authorization)
+                .tokenType(new OAuth2TokenType(OAuth2ParameterNames.CODE))
+                .authorizedScopes(registeredClient.getScopes())
+                .authorizationGrantType(authorization.getAuthorizationGrantType())
+                .build();
+        var authorizationCode = tokenGenerator.generate(tokenContext);
+        // Update authorization
+        authorization = OAuth2Authorization.from(authorization).token(authorizationCode).build();
+        authorizationService.save(authorization);
+        var code = authorizationCode.getTokenValue();
+
+        String redirectUrl = request.redirect_uri + "?code=" + code + "&state=" + request.state;
         return "redirect:" + redirectUrl;
     }
 }

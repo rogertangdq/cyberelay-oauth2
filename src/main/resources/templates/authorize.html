@@ -15,8 +15,13 @@
 <form th:action="@{/authorize}" method="post">
     <input type="hidden" name="client_id" th:value="${clientId}"/>
     <input type="hidden" name="redirect_uri" th:value="${redirectUri}"/>
+    <input type="hidden" name="response_type" th:value="${responseType}"/>
+    <input type="hidden" name="response_mode" th:value="${responseMode}"/>
     <input type="hidden" name="scope" th:value="${scope}"/>
+    <input type="hidden" name="code_challenge" th:value="${codeChallenge}"/>
+    <input type="hidden" name="code_challenge_method" th:value="${codeChallengeMethod}"/>
     <input type="hidden" name="state" th:value="${state}"/>
+    <input type="hidden" name="principalName" th:value="${principalName}"/>
 
     <button type="submit">Approve</button>
     <button type="button" onclick="window.history.back()">Deny</button>

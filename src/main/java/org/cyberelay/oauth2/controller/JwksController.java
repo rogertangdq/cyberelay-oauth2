@@ -18,7 +18,6 @@ public class JwksController {
 
     private final ECPublicKey publicKey;
 
-    @Autowired
     public JwksController(ECPublicKey publicKey) {
         this.publicKey = publicKey;
     }

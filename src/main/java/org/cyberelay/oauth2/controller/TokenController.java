@@ -10,10 +10,11 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2Token;
+import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.token.DefaultOAuth2TokenContext;
-import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,23 +43,29 @@ public class TokenController {
         this.defaultClient = defaultClient;
     }
 
-    public record TokenRequest(String client_id, String client_secret, String grant_type) {
+    public record TokenRequest(String client_id,
+                               String client_secret,
+                               String code,
+                               String code_verifier,
+                               String grant_type) {
         public TokenRequest withClientId(String clientId) {
-            return new TokenRequest(clientId, this.client_secret, this.grant_type);
+            return new TokenRequest(clientId, this.client_secret, this.code, this.code_verifier, this.grant_type);
         }
 
         public TokenRequest withClientSecret(String clientSecret) {
-            return new TokenRequest(this.client_id, clientSecret, this.grant_type);
+            return new TokenRequest(this.client_id, clientSecret, this.code, this.code_verifier, this.grant_type);
         }
     }
 
     @PostMapping
     @CrossOrigin
     public Map<String, Object> getToken(@ModelAttribute TokenRequest request) {
-        // Customization for test kit to ensure client/clientSecret not absent.
+        // Customization for test kit
+        // Fill in default client to ensure client/clientSecret not absent.
         if (request.client_id == null || request.client_secret == null) {
             LOG.warn("Token request has no client_id, default client ID is used");
-            request = request.withClientId(defaultClient.getClientId())
+            request = request
+                    .withClientId(defaultClient.getClientId())
                     .withClientSecret(defaultClient.getClientSecret());
         }
 
@@ -70,31 +77,43 @@ public class TokenController {
 
         // Only handling the "authorization_code" grant type at this moment
         if (!"authorization_code".equals(request.grant_type)) {
-            throw new IllegalArgumentException("Unsupported grant type: "  + request.grant_type);
+            throw new IllegalArgumentException("Unsupported grant type: " + request.grant_type);
+        }
+
+        // Validate authorization code
+        var code = authorizationService.findByToken(request.code, new OAuth2TokenType(OAuth2ParameterNames.CODE));
+        if (code == null) {
+            throw new IllegalArgumentException("Invalid authorization code");
         }
 
         var registeredClient = clientOpt.get().toRegisteredClient();
+        var authorization = OAuth2Authorization.from(code)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .build();
+
         // Generate the access token
-        OAuth2TokenContext tokenContext = DefaultOAuth2TokenContext
+        var tokenContext = DefaultOAuth2TokenContext
                 .builder()
                 .registeredClient(registeredClient)
                 .principal(new UsernamePasswordAuthenticationToken(request.client_id, request.client_secret))
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .authorization(OAuth2Authorization.withRegisteredClient(registeredClient).build())
-                .authorizedScopes(registeredClient.getScopes())
+                .authorization(authorization)
+                .tokenType(OAuth2TokenType.ACCESS_TOKEN)
+                .authorizedScopes(code.getAuthorizedScopes())
                 .build();
 
-        OAuth2Token token = tokenGenerator.generate(tokenContext);
+        OAuth2Token accessToken = tokenGenerator.generate(tokenContext);
+        authorization = OAuth2Authorization.from(authorization).token(accessToken).build();
+        authorizationService.save(authorization);
 
-        if (!(token instanceof OAuth2AccessToken)) {
+        if (!(accessToken instanceof OAuth2AccessToken)) {
             throw new IllegalArgumentException("Unable to generate access token");
         }
 
         // Return the token response in JSON format
         Map<String, Object> response = new HashMap<>();
-        response.put("access_token", token.getTokenValue());
+        response.put("access_token", accessToken.getTokenValue());
         response.put("token_type", "Bearer");
-        response.put("expires_in", token.getExpiresAt().getEpochSecond() - Instant.now().getEpochSecond());
+        response.put("expires_in", accessToken.getExpiresAt().getEpochSecond() - Instant.now().getEpochSecond());
 
         return response;
     }
