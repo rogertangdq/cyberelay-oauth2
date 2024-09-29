@@ -29,7 +29,6 @@ import java.util.Set;
 @RequestMapping(EndPoints.AUTHORIZATION)
 public class AuthorizationController {
     private static final Logger LOG = LoggerFactory.getLogger(AuthorizationController.class);
-
     private static final Set<String> VALID_CHALLENGE_METHODS = Set.of("s256", "plain");
     private final ClientRepository registeredClientRepository;
     private final OAuth2AuthorizationService authorizationService;

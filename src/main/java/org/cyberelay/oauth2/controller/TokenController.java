@@ -114,7 +114,7 @@ public class TokenController {
         var tokenContext = DefaultOAuth2TokenContext
                 .builder()
                 .registeredClient(registeredClient)
-                .principal(new UsernamePasswordAuthenticationToken(request.client_id, request.client_secret))
+                .principal(new UsernamePasswordAuthenticationToken(code.getPrincipalName(), null))
                 .authorization(authorization)
                 .authorizationServerContext(new InternalAuthorizationServerContext())
                 .tokenType(new OAuth2TokenType(OidcParameterNames.ID_TOKEN))
