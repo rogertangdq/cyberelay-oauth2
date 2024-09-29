@@ -10,6 +10,7 @@ import jakarta.persistence.Transient;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 
 @Entity
 @Table(name = "oauth2_client")
@@ -56,13 +57,14 @@ public class Client {
 
     // Convert this object into spring RegisteredClient object
     public RegisteredClient toRegisteredClient() {
-        RegisteredClient.Builder builder = RegisteredClient
+        var builder = RegisteredClient
                 .withId(this.id)
                 .clientId(this.clientId)
                 .clientSecret(this.clientSecret)
                 .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN);
+                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
+                .clientSettings(ClientSettings.builder().requireProofKey(true).build());
 
         if (redirectUris != null && !redirectUris.isEmpty()) {
             for (String uri : redirectUris.split(",")) {

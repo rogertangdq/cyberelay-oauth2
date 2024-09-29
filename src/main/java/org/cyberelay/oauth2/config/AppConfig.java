@@ -1,5 +1,8 @@
 package org.cyberelay.oauth2.config;
 
+import com.nimbusds.jose.jwk.Curve;
+import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.proc.SecurityContext;
 import org.cyberelay.oauth2.dao.ClientRepository;
 import org.cyberelay.oauth2.model.Client;
 import org.cyberelay.oauth2.model.User;
@@ -20,22 +23,30 @@ import org.springframework.security.crypto.keygen.Base64StringKeyGenerator;
 import org.springframework.security.crypto.keygen.StringKeyGenerator;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.token.DelegatingOAuth2TokenGenerator;
+import org.springframework.security.oauth2.server.authorization.token.JwtGenerator;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2AccessTokenGenerator;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.security.web.SecurityFilterChain;
+
+import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.jwk.JWKSet;
+import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
+
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
+import java.util.UUID;
 
 import org.cyberelay.oauth2.dao.UserRepository;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
-import java.security.interfaces.ECPrivateKey;
-import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.time.Instant;
 import java.util.Base64;
@@ -105,18 +116,38 @@ public class AppConfig {
     }
 
     @Bean
-    public OAuth2TokenGenerator<?> tokenGenerator() {
+    public OAuth2TokenGenerator<?> tokenGenerator(JWKSource<SecurityContext> jwkSource) {
         // Combine them to form the OAuth2TokenGenerator
         return new DelegatingOAuth2TokenGenerator(
                 new OAuth2AccessTokenGenerator(),
-                new OAuth2AuthorizationCodeGenerator()
+                new OAuth2AuthorizationCodeGenerator(),
+                new JwtGenerator(new NimbusJwtEncoder(jwkSource))
         );
+    }
+
+    @Bean
+    public JWKSource<SecurityContext> createJWKSource(ECPrivateKey ecPrivateKey, ECPublicKey ecPublicKey) {
+        try {
+            ECKey ecJWK = new ECKey.Builder(Curve.P_256, ecPublicKey)
+                    .privateKey(ecPrivateKey)
+                    .keyID(UUID.randomUUID().toString())
+                    .build();
+
+            // Create a JWKSet containing EC JWK
+            JWKSet jwkSet = new JWKSet(ecJWK);
+
+            // Create a JWKSource using the ImmutableJWKSet
+            return new ImmutableJWKSet<>(jwkSet);
+        } catch (Exception e) {
+            throw new RuntimeException("Error creating JWKSource", e);
+        }
     }
 
     private static final class OAuth2AuthorizationCodeGenerator implements OAuth2TokenGenerator<OAuth2AuthorizationCode> {
 
         private final StringKeyGenerator authorizationCodeGenerator = new Base64StringKeyGenerator(
-                Base64.getUrlEncoder().withoutPadding(), 96);
+                Base64.getUrlEncoder().withoutPadding(), 96
+        );
 
         @Nullable
         @Override
