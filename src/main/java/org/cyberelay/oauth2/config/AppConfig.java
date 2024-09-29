@@ -63,7 +63,7 @@ public class AppConfig {
                 )
                 .formLogin(formLogin -> formLogin
                         .loginPage(EndPoints.LOGIN)
-                        .defaultSuccessUrl(EndPoints.AUTHORIZATION, true) // return to authorization after login
+                        .defaultSuccessUrl(EndPoints.AUTHORIZATION, false)
                 )
                 .logout(logout -> logout
                         .logoutSuccessUrl(EndPoints.LOGIN + "?logout").permitAll()
