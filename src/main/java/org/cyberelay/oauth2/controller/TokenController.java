@@ -21,9 +21,7 @@ import org.springframework.web.bind.annotation.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.time.Instant;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.Map;
 
 @RestController
@@ -120,16 +118,14 @@ public class TokenController {
                 .build();
 
         OAuth2Token accessToken = tokenGenerator.generate(tokenContext);
+        if (accessToken == null) {
+            throw new IllegalStateException("ID Token generation failed");
+        }
+
         authorization = OAuth2Authorization.from(authorization).token(accessToken).build();
         authorizationService.save(authorization);
 
-        // Return the token response in JSON format
-        Map<String, Object> response = new HashMap<>();
-        response.put("access_token", accessToken.getTokenValue());
-        response.put("token_type", "Bearer");
-        response.put("expires_in", accessToken.getExpiresAt().getEpochSecond() - Instant.now().getEpochSecond());
-
-        return response;
+        return Map.of("id_token", accessToken.getTokenValue());
     }
 
     private boolean verifyCodeChallenge(String codeVerifier, String codeChallenge, String codeChallengeMethod) {
