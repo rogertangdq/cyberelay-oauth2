@@ -14,9 +14,12 @@ import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
+import org.springframework.security.oauth2.server.authorization.context.AuthorizationServerContext;
+import org.springframework.security.oauth2.server.authorization.settings.AuthorizationServerSettings;
 import org.springframework.security.oauth2.server.authorization.token.DefaultOAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -111,8 +114,9 @@ public class TokenController {
         var tokenContext = DefaultOAuth2TokenContext
                 .builder()
                 .registeredClient(registeredClient)
-                .principal(new UsernamePasswordAuthenticationToken(request.client_id, request.client_secret))
+                .principal(new UsernamePasswordAuthenticationToken(code.getPrincipalName(), null))
                 .authorization(authorization)
+                .authorizationServerContext(new InternalAuthorizationServerContext())
                 .tokenType(new OAuth2TokenType(OidcParameterNames.ID_TOKEN))
                 .authorizedScopes(code.getAuthorizedScopes())
                 .build();
@@ -126,6 +130,22 @@ public class TokenController {
         authorizationService.save(authorization);
 
         return Map.of("id_token", accessToken.getTokenValue());
+    }
+
+    private static class InternalAuthorizationServerContext implements AuthorizationServerContext {
+        @Override
+        public String getIssuer() {
+            return ServletUriComponentsBuilder
+                    .fromCurrentRequestUri()
+                    .replacePath(null)
+                    .build()
+                    .toUriString();
+        }
+
+        @Override
+        public AuthorizationServerSettings getAuthorizationServerSettings() {
+            return null;
+        }
     }
 
     private boolean verifyCodeChallenge(String codeVerifier, String codeChallenge, String codeChallengeMethod) {
