@@ -85,7 +85,7 @@ public class AuthorizationController {
     }
 
     @PostMapping
-    public String approveAuthorization(@RequestBody AuthorizeRequest request) {
+    public String approveAuthorization(@ModelAttribute AuthorizeRequest request) {
         // Custom logic to approve the authorization request.
         // Redirecting to the provided redirect URI after successful authorization
         String redirectUrl = request.redirect_uri + "?code=sample_auth_code&state=" + request.state;
