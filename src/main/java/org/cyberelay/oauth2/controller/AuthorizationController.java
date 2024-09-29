@@ -12,7 +12,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
-import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.token.DefaultOAuth2TokenContext;
@@ -31,6 +30,7 @@ import java.util.Set;
 public class AuthorizationController {
     private static final Logger LOG = LoggerFactory.getLogger(AuthorizationController.class);
 
+    private static final Set<String> VALID_CHALLENGE_METHODS = Set.of("s256", "plain");
     private final ClientRepository registeredClientRepository;
     private final OAuth2AuthorizationService authorizationService;
 
@@ -109,6 +109,15 @@ public class AuthorizationController {
         var clientOpt = registeredClientRepository.findByClientId(request.client_id);
         if (clientOpt.isEmpty()) {
             throw new IllegalArgumentException("Invalid client_id");
+        }
+
+        // TODO what if it's NON-PKCE flow?
+        if (request.code_challenge == null || request.code_challenge_method == null) {
+            throw new IllegalArgumentException("Code challenge or code challenge method not found");
+        }
+
+        if (!VALID_CHALLENGE_METHODS.contains(request.code_challenge_method.toLowerCase())) {
+            throw new IllegalArgumentException("Invalid code challenge method: " + request.code_challenge_method);
         }
 
         var registeredClient = clientOpt.get().toRegisteredClient();

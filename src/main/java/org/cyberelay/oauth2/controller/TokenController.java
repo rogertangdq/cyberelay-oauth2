@@ -18,7 +18,11 @@ import org.springframework.security.oauth2.server.authorization.token.DefaultOAu
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -69,6 +73,10 @@ public class TokenController {
                     .withClientSecret(defaultClient.getClientSecret());
         }
 
+        if (request.code_verifier == null) {
+            throw new IllegalArgumentException("Invalid code verifier");
+        }
+
         // Validate the client
         var clientOpt = clientRepository.findByClientId(request.client_id);
         if (clientOpt.isEmpty() || !clientOpt.get().getClientSecret().equals(request.client_secret)) {
@@ -84,6 +92,16 @@ public class TokenController {
         var code = authorizationService.findByToken(request.code, new OAuth2TokenType(OAuth2ParameterNames.CODE));
         if (code == null) {
             throw new IllegalArgumentException("Invalid authorization code");
+        }
+
+        var codeChallenge = (String) code.getAttribute("codeChallenge");
+        var codeChallengeMethod = (String) code.getAttribute("codeChallengeMethod");
+        if (codeChallenge == null || codeChallengeMethod == null) {
+            throw new IllegalArgumentException("Code challenge or code challenge method not found");
+        }
+
+        if (!verifyCodeChallenge(request.code_verifier, codeChallenge, codeChallengeMethod)) {
+            throw new IllegalArgumentException("Invalid code verifier");
         }
 
         var registeredClient = clientOpt.get().toRegisteredClient();
@@ -116,5 +134,25 @@ public class TokenController {
         response.put("expires_in", accessToken.getExpiresAt().getEpochSecond() - Instant.now().getEpochSecond());
 
         return response;
+    }
+
+    private boolean verifyCodeChallenge(String codeVerifier, String codeChallenge, String codeChallengeMethod) {
+        try {
+            switch (codeChallengeMethod.toLowerCase()) {
+                case "s256":
+                    MessageDigest digest = MessageDigest.getInstance("SHA-256");
+                    byte[] hash = digest.digest(codeVerifier.getBytes(StandardCharsets.US_ASCII));
+                    // Base64 URL-encode the hash
+                    String encodedHash = Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+                    // Compare with the original code_challenge
+                    return encodedHash.equals(codeChallenge);
+                case "plain":
+                    return codeVerifier.equals(codeChallenge);
+                default:
+                    throw new IllegalArgumentException("Unsupported code_challenge_method: " + codeChallengeMethod);
+            }
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("Error while verifying code challenge: " + e.getMessage(), e);
+        }
     }
 }
