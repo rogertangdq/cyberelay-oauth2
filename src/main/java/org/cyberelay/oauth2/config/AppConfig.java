@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.lang.Nullable;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -15,10 +16,16 @@ import org.springframework.security.config.annotation.web.configurers.HeadersCon
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.keygen.Base64StringKeyGenerator;
+import org.springframework.security.crypto.keygen.StringKeyGenerator;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.server.authorization.InMemoryOAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.token.DelegatingOAuth2TokenGenerator;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2AccessTokenGenerator;
+import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -30,6 +37,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
+import java.time.Instant;
+import java.util.Base64;
 
 @Configuration
 @EnableWebSecurity
@@ -98,7 +107,28 @@ public class AppConfig {
     @Bean
     public OAuth2TokenGenerator<?> tokenGenerator() {
         // Combine them to form the OAuth2TokenGenerator
-        return new OAuth2AccessTokenGenerator();
+        return new DelegatingOAuth2TokenGenerator(
+                new OAuth2AccessTokenGenerator(),
+                new OAuth2AuthorizationCodeGenerator()
+        );
+    }
+
+    private static final class OAuth2AuthorizationCodeGenerator implements OAuth2TokenGenerator<OAuth2AuthorizationCode> {
+
+        private final StringKeyGenerator authorizationCodeGenerator = new Base64StringKeyGenerator(
+                Base64.getUrlEncoder().withoutPadding(), 96);
+
+        @Nullable
+        @Override
+        public OAuth2AuthorizationCode generate(OAuth2TokenContext context) {
+            if (context.getTokenType() == null || !OAuth2ParameterNames.CODE.equals(context.getTokenType().getValue())) {
+                return null;
+            }
+            Instant issuedAt = Instant.now();
+            Instant expiresAt = issuedAt
+                    .plus(context.getRegisteredClient().getTokenSettings().getAuthorizationCodeTimeToLive());
+            return new OAuth2AuthorizationCode(this.authorizationCodeGenerator.generateKey(), issuedAt, expiresAt);
+        }
     }
 
     @Bean

@@ -7,13 +7,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2Token;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.token.DefaultOAuth2TokenContext;
-import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenContext;
 import org.springframework.security.oauth2.server.authorization.token.OAuth2TokenGenerator;
 import org.springframework.web.bind.annotation.*;
 
@@ -42,23 +42,29 @@ public class TokenController {
         this.defaultClient = defaultClient;
     }
 
-    public record TokenRequest(String client_id, String client_secret, String grant_type) {
+    public record TokenRequest(String client_id,
+                               String client_secret,
+                               String code,
+                               String code_verifier,
+                               String grant_type) {
         public TokenRequest withClientId(String clientId) {
-            return new TokenRequest(clientId, this.client_secret, this.grant_type);
+            return new TokenRequest(clientId, this.client_secret, this.code, this.code_verifier, this.grant_type);
         }
 
         public TokenRequest withClientSecret(String clientSecret) {
-            return new TokenRequest(this.client_id, clientSecret, this.grant_type);
+            return new TokenRequest(this.client_id, clientSecret, this.code, this.code_verifier, this.grant_type);
         }
     }
 
     @PostMapping
     @CrossOrigin
     public Map<String, Object> getToken(@ModelAttribute TokenRequest request) {
-        // Customization for test kit to ensure client/clientSecret not absent.
+        // Customization for test kit
+        // Fill in default client to ensure client/clientSecret not absent.
         if (request.client_id == null || request.client_secret == null) {
             LOG.warn("Token request has no client_id, default client ID is used");
-            request = request.withClientId(defaultClient.getClientId())
+            request = request
+                    .withClientId(defaultClient.getClientId())
                     .withClientSecret(defaultClient.getClientSecret());
         }
 
@@ -74,13 +80,20 @@ public class TokenController {
         }
 
         var registeredClient = clientOpt.get().toRegisteredClient();
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        var authorization = OAuth2Authorization
+                .withRegisteredClient(registeredClient)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .principalName(authentication.getName())
+                .build();
+        authorizationService.save(authorization);
+
         // Generate the access token
-        OAuth2TokenContext tokenContext = DefaultOAuth2TokenContext
+        var tokenContext = DefaultOAuth2TokenContext
                 .builder()
                 .registeredClient(registeredClient)
                 .principal(new UsernamePasswordAuthenticationToken(request.client_id, request.client_secret))
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .authorization(OAuth2Authorization.withRegisteredClient(registeredClient).build())
+                .authorization(authorization)
                 .authorizedScopes(registeredClient.getScopes())
                 .build();
 

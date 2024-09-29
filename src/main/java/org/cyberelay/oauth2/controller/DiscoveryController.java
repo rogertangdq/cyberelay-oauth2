@@ -28,7 +28,7 @@ public class DiscoveryController {
         config.put("jwks_uri", urlBuilder.apply(EndPoints.JWKS_URI));
         config.put("response_types_supported", new String[]{"code", "token", "id_token"});
         config.put("grant_types_supported", new String[]{"authorization_code", "client_credentials", "refresh_token"});
-        config.put("scopes_supported", new String[]{"openid", "profile", "email"});
+        config.put("scopes_supported", new String[]{"openid"});
         config.put("subject_types_supported", new String[]{"public"});
         config.put("id_token_signing_alg_values_supported", new String[]{"RS256"});
 
