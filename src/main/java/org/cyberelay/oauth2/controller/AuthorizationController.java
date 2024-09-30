@@ -25,6 +25,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.util.Set;
 
+/**
+ * Implementation of Authorization Endpoint
+ */
 @Controller
 @RequestMapping(EndPoints.AUTHORIZATION)
 public class AuthorizationController {

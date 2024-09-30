@@ -10,8 +10,5 @@
     <p>Hello, <span th:text="${name}"></span>!</p>
     <p>Your email: <span th:text="${email}"></span></p>
 </div>
-<div th:if="${name == null}">
-    <p><a href="/oauth2/authorization/google">Login with Google</a></p>
-</div>
 </body>
 </html>

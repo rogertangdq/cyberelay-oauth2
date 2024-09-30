@@ -13,6 +13,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.security.interfaces.ECPublicKey;
 import java.util.Map;
 
+/**
+ * Implementation of JWK Set Endpoint
+ */
 @RestController
 public class JwksController {
 
