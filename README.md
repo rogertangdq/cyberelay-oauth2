@@ -12,7 +12,7 @@
 - The application comes with two pre-configured user accounts:
   - Username/Password: `user/password`
   - Username/Password: `admin/admin`
-- TO start `oidc-tester`, create or update `oidc-tester/src/oidc-config.json` file with the following content: 
+- To start `oidc-tester`, create or update `oidc-tester/src/oidc-config.json` file with the following content: 
   ```json
   {
     "redirect_uri": "http://localhost:3000/oauth/callback",
@@ -36,7 +36,7 @@
 - Next, review the `AppConfig` class, which serves as the factory for all service components used by the controllers,
   including:
   - Public/private key pairs
-  - Initiation of Pre-configured user account
+  - Initiation of pre-configured user account
   - JWK source
   - Token generators
   - Authorization service
