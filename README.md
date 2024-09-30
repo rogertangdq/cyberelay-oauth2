@@ -1,7 +1,7 @@
 ## How to run the application?
 - **Ensure JDK 17 or a later version installed.** This application uses Java records, a feature first supported in 
-  Java 17 (the initial LTS version to include it). If you haven't installed it yet, follow [this link](TODO) for
-  installation instruction.
+  Java 17 (the initial LTS version to include it). If you haven't installed it yet, follow 
+  [this link](#how-to-install-jdk-17-or-a-later-version) for installation instruction.
 - If you prefer running the application in docker, ensure Docker Desktop is installed.
 - To start the application, navigate to the project root directory and run `./mvnw spring-boot:run` in your terminal. 
   This will launch the application at [http://localhost:8080](http://localhost:8080)
