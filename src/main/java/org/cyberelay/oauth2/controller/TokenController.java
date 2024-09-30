@@ -27,6 +27,9 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Map;
 
+/**
+ * Implementation of Token Endpoint
+ */
 @RestController
 @RequestMapping(EndPoints.TOKEN)
 public class TokenController {
