@@ -62,7 +62,8 @@
 
 #### How to Access H2 Database Admin Console?
 - You can access the database at [http://localhost:8080/h2-console](http://localhost:8080/h2-console) once the 
-  application is running. Use the following credentials to login
+  application is running. Use the following credentials to login (Note: H2 console is accessible only if the application 
+  is running in local host)
   - **JDBC URL**: `jdbc:h2:mem:testdb`
   - **Username**: `sa`
   - **Password**: `password`
