@@ -32,7 +32,7 @@
 - This application is a Spring Boot project. Refer to [this document](doc/references.md) for details on the tech stack 
   being used.
 - I would start by looking at the controllers, which implement the OAuth2 REST APIs. The controller names are 
-  self-explanary, with each one handling a specific OAuth2 endpoint.
+  self-explanatory, with each one handling a specific OAuth2 endpoint.
 - Next, review the `AppConfig` class, which serves as the factory for all service components used by the controllers,
   including:
   - Public/private key pairs
